@@ -49,6 +49,33 @@ public:
 		xmax = _xmax;
 		prec = _prec;
 	}
+	void reset(double _x0, double _u0, double _v0, double _a, double _b, double _c, double _h, int _n, double _eps, double _xmax, double _prec)
+	{
+		arg.clear();
+		ures.clear();
+		vres.clear();
+		reswcap.clear();
+		steps.clear();
+		ss.clear();
+		hinc.clear();
+		hdec.clear();
+		N = 0;
+		inc = 0;
+		dec = 0;
+		Smin = 0;
+		Smax = 0;
+		x0 = _x0;
+		u0 = _u0;
+		v0 = _v0;
+		a = _a;
+		b = _b;
+		c = _c;
+		h = _h;
+		n = _n;
+		eps = _eps;
+		xmax = _xmax;
+		prec = _prec;
+	}
 	std::pair<double, double> RK4(double xn, double un, double vn, double h)
 	{
 		double ku1, ku2, ku3, ku4;  // for un
@@ -149,7 +176,7 @@ public:
 		int i = 0;
 		while (i < n)
 		{
-			if ((xn > (xmax - prec)) && (xn < xmax))
+			if ((xn > (xmax - prec)) && (xn <= xmax))
 			{
 				break;
 			}
@@ -166,7 +193,7 @@ public:
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h)>xmax))
 						{
 							h /= 2.0;
 						}
@@ -191,8 +218,9 @@ public:
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h) > xmax))
 						{
+							//((xn > (xmax - prec)) && (xn < xmax))
 							h /= 2.0;
 						}
 						xn += h;
@@ -215,7 +243,7 @@ public:
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h) > xmax))
 						{
 							h /= 2.0;
 						}
@@ -275,15 +303,31 @@ public:
 		if (vc.ures.empty() || vc.ures.empty())
 			out << "There are no calculated results yet.";
 		else {
-			out << "n  " << " h n-1  " << "    x    " << "    un    " << "    vn    " << "       S*      " << "inc " << "dec" << std::endl;
+						out << "Основная задача 2" << std::endl;
+			out << std::setw(5) << "n" << std::setw(12) << "h n-1" << std::setw(15) << "x" << std::setw(15) << "un" << std::setw(15) << "vn" << std::setw(15) << "u^" << std::setw(15) << "v^" << std::setw(15) << "S*" << std::setw(5) << "inc" << std::setw(4) << "dec" << std::endl;
+			out << "--------------------------------------------------------------------------------------------------------------------" << std::endl;
+
 			for (int i = 0; i < vc.ures.size(); i++)
 			{
-				out << i << "  " << vc.steps[i] << "      " << vc.arg[i] << "    " << vc.ures[i] << "    " << vc.vres[i] << "    " << vc.ss[i] << "    " << vc.hinc[i] << "  " << vc.hdec[i] << std::endl;
+				out << std::setw(5) << i << std::setw(12) << vc.steps[i] << std::setw(15) << vc.arg[i] << std::setw(15) << vc.ures[i] << std::setw(15) << vc.vres[i] << std::setw(15) << vc.reswcap[i].first << std::setw(15) << vc.reswcap[i].second << std::setw(15) << vc.ss[i] << std::setw(5) << vc.hinc[i] << std::setw(4) << vc.hdec[i] << std::endl;
 			}
 		}
 		return out;
 	}
 
+	void help()
+	{
+		std::cout << std::setw(50) << "Справка" << std::endl;
+		std::cout << "Метод Рунге-Кутта порядка p = 4" << std::endl;
+		std::cout << "Количество шагов n = " << N << std::endl;
+		std::cout << "xmax - xn = " << (xmax - Xn) << std::endl;
+		std::cout << "max |S*| = " << ss[Smax] << "  при х = " << arg[Smax] << std::endl;
+		std::cout << "min |S*| = " << ss[Smin] << "  при х = " << arg[Smin] << std::endl;
+		std::cout << "Общее число увеличений шага = " << inc << std::endl;
+		std::cout << "Общее число уменьшений шага = " << dec << std::endl;
+		std::cout << "Максимальный шаг h = " << steps[hmax] << "  при х = " << arg[hmax] << std::endl;
+		std::cout << "Минимальный шаг h = " << steps[hmin] << "  при х = " << arg[hmin] << std::endl;
+	}
 
 	/*
 	double reth(int count)

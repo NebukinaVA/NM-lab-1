@@ -1,9 +1,8 @@
 #pragma once
 #include <iostream>
 #include <cmath>
-#include <map>
 #include <vector>
-#include <iterator>
+#include <iomanip>
 
 // du/dx = 2*u = f(u, x)
 // calculation stops when n steps are done or xmax reached
@@ -16,6 +15,7 @@ private:
 	int n;                   // number of steps
 	int N = 0; // total steps
 	double Xn, Vn;
+	double maxgloberr = 0.0;
 	int inc = 0;
 	int dec = 0; // total inc dec
 	int Smin = 0, Smax = 0; // number of string with Smin, Smax
@@ -36,6 +36,29 @@ private:
 public:
 	test(double _x0, double _v0, double _h, int _n, double _eps, double _xmax, double _prec)
 	{
+		x0 = _x0;
+		v0 = _v0;
+		h = _h;
+		n = _n;
+		eps = _eps;
+		xmax = _xmax;
+		prec = _prec;
+	}
+	void reset(double _x0, double _v0, double _h, int _n, double _eps, double _xmax, double _prec)
+	{
+		arg.clear();
+		res.clear();
+		reswcap.clear();
+		steps.clear();
+		ss.clear();
+		exres.clear();
+		hinc.clear();
+		hdec.clear();
+		N = 0;
+		inc = 0;
+		dec = 0;
+		Smin = 0;
+		Smax = 0;
 		x0 = _x0;
 		v0 = _v0;
 		h = _h;
@@ -103,6 +126,7 @@ public:
 		Vn = res[i];
 		hmin = i;
 		hmax = 1;
+		maxgloberr = 0.0;
 		return res;
 	}
 	std::vector<double> calculate_w_error()
@@ -122,10 +146,11 @@ public:
 		double xhalf = x0;
 		double vhalf, reswithcap, vnext;
 		double S, Sabs;
+		double globerr;
 		int i = 0;
 		while (i < n)
 		{
-			if ((xn > (xmax - prec)) && (xn < xmax))
+			if ((xn > (xmax - prec)) && (xn <= xmax))
 			{
 				break;
 			}
@@ -141,41 +166,45 @@ public:
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h) > xmax))
 						{
 							h /= 2.0;
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
 						vn = RK4(xn, vn, h);
+						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
 						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else
 					{
-						vn = RK4(xn, vn, h);
+						vn = vnext;
 						xn += h;
+						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
 						hdec.insert(hdec.begin() + i + 1, dec);
 					}
 
 				}
-				else if (Sabs < (eps / 16.0))
+				else if (Sabs < (eps / 32.0))
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h) > xmax))
 						{
 							h /= 2.0;
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
 						vn = RK4(xn, vn, h);
+						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
 						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else {
-						vn = RK4(xn, vn, h);
+						vn = vnext;
+						steps.insert(steps.begin() + i + 1, h);
 						xn += h;
 						h *= 2.0;
 						hinc.insert(hinc.begin() + i + 1, ++inc);
@@ -186,13 +215,14 @@ public:
 				{
 					if ((xn + h) > xmax)
 					{
-						while (((xn + h) > xmax) && (xn < (xmax - prec)))
+						while ((!((xn > (xmax - prec)) && (xn <= xmax))) && ((xn + h) > xmax))
 						{
 							h /= 2.0;
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
 						vn = RK4(xn, vn, h);
+						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
 						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
@@ -200,12 +230,13 @@ public:
 						h = h / 2.0;
 						vn = RK4(xn, vn, h);
 						xn += h;
+						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
 						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 				}
 				i++;
-				S *= 8.0;
+				S *= 16.0;
 				if (i == 1)
 				{
 					Smin = i;
@@ -213,18 +244,30 @@ public:
 					hmin = i;
 					hmax = i;
 				}
-				else if (Sabs < ss[Smin])
+				else if (S < ss[Smin])
 					Smin = i;
-				else if (Sabs > ss[Smax])
+				else if (S > ss[Smax])
 					Smax = i;
+				if (h < steps[hmin])
+					hmin = i;
+				if (h > steps[hmax])
+					hmax = i;
 				reswcap.insert(reswcap.begin() + i, reswithcap);
 				ss.insert(ss.begin() + i, S);
 				arg.insert(arg.begin() + i, xn);
 				res.insert(res.begin() + i, vn);
-				steps.insert(steps.begin() + i, h);
 				exres.insert(exres.begin() + i, ExactSolution(xn));
+				globerr = abs(exres[i] - res[i]);
+				if (globerr > maxgloberr)
+					maxgloberr = globerr;
+
 			}
 		}
+		N = i;
+		Xn = arg[i];
+		Vn = res[i];
+		inc = hinc[i];
+		dec = hdec[i];
 		return res;
 	}
 	double ExactSolution(double x)
@@ -234,17 +277,34 @@ public:
 	friend std::ostream & operator<<(std::ostream &out, test &vc)
 	{
 		if (vc.res.empty())
-			out << "There are no calculated results yet.";
+			out << "Вычисления еще не проводились.";
 		else {
-			out << "n  " << " h n-1  " << "    x    " << "      vn        " << "        v^        " << "       u      " << "   u - vn    " << "       S*      " << "inc " << "dec" << std::endl;
+			out << "Тестовая задача" << std::endl;
+			out << std::setw(5) << "n" << std::setw(10) << "h n-1" << std::setw(10) << "x" << std::setw(10) << "vn" << std::setw(10) << "v^" << std::setw(10) << "u" << std::setw(15) << "u - vn" << std::setw(15) << "S*" << std::setw(5) << "inc" << std::setw(4) << "dec" << std::endl;
+			out << "-------------------------------------------------------------------------------------------" << std::endl;
 			double globerr;
 			for (int i = 0; i < vc.res.size(); i++)
 			{
 				globerr = abs(vc.exres[i] - vc.res[i]);
-				out << i << "  " << vc.steps[i] << "      " << vc.arg[i] << "    " << vc.res[i] << "    " << vc.reswcap[i] << "    " << vc.exres[i] << "    " << globerr << "   " << vc.ss[i] << "    " << vc.hinc[i] << "  " << vc.hdec[i] << std::endl;
+				out << std::setw(5) << i << std::setw(10) << vc.steps[i] << std::setw(10) << vc.arg[i] << std::setw(10) << vc.res[i] << std::setw(10) << vc.reswcap[i] << std::setw(10) << vc.exres[i] << std::setw(15) << globerr << std::setw(15) << vc.ss[i] << std::setw(5) << vc.hinc[i] << std::setw(4) << vc.hdec[i] << std::endl;
 			}
+			out << "\n";
 		}
 		return out;
+	}
+	void help()
+	{
+		std::cout << std::setw(50) << "Справка" << std::endl;
+		std::cout << "Метод Рунге-Кутта порядка p = 4" << std::endl;
+		std::cout << "Количество шагов n = " << N << std::endl;
+		std::cout << "xmax - xn = " << (xmax - Xn) << std::endl;
+		std::cout << "max |S*| = " << ss[Smax] << "  при х = " << arg[Smax] << std::endl;
+		std::cout << "min |S*| = " << ss[Smin] << "  при х = " << arg[Smin] << std::endl;
+		std::cout << "Общее число увеличений шага = " << inc << std::endl;
+		std::cout << "Общее число уменьшений шага = " << dec << std::endl;
+		std::cout << "Максимальный шаг h = " << steps[hmax] << "  при х = " << arg[hmax] << std::endl;
+		std::cout << "Минимальный шаг h = " << steps[hmin] << "  при х = " << arg[hmin] << std::endl;
+		std::cout << "max |un - vn| = " << maxgloberr << "\n" << std::endl;
 	}
 
 	/*
