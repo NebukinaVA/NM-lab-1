@@ -170,8 +170,8 @@ public:
 						vn = RK4(xn, vn, h);
 						xn += h;
 						h *= 2.0;
-						hinc.insert(hinc.begin() + i + 2, ++inc);
-						hdec.insert(hdec.begin() + i + 2, dec);
+						hinc.insert(hinc.begin() + i + 1, ++inc);
+						hdec.insert(hdec.begin() + i + 1, dec);
 					}
 				}
 				else if (Sabs > eps)
@@ -210,9 +210,9 @@ public:
 				else if (Sabs > ss[Smax])
 					Smax = i;
 				if (h < steps[hmin])
-					hmin = i + 1;
+					hmin = i;
 				if (h > steps[hmax])
-					hmax = i + 1;
+					hmax = i;
 				reshalf.insert(reshalf.begin() + i, reswcap);
 				ss.insert(ss.begin() + i, S);
 				arg.insert(arg.begin() + i, xn);
@@ -267,16 +267,6 @@ public:
 	double rets(int count)
 	{
 		return ss[count];
-	}
-
-	double reti(int count)
-	{
-		return exres[count];
-	}
-
-	double retdi(int count)
-	{
-		return abs(exres[count] - res[count]);
 	}
 
 	int rethinc(int count)
@@ -356,7 +346,7 @@ public:
 
 	double retxMax(void) //значение Xn - заданная правая граница
 	{
-		return xMax;
+		return xmax;
 	}
 
 	double retvN(void) //значение In
@@ -412,6 +402,6 @@ public:
 	double retX_hmin(void) //min hn при
 	{
 		return arg[hmin];
-	}*/
-
+	}
+	*/
 };

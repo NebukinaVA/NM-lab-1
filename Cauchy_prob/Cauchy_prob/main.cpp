@@ -1,5 +1,6 @@
 #include "test.h"
 #include "task1.h"
+#include "task2.h"
 #include <iostream>
 
 /*
@@ -14,7 +15,9 @@
 
 int main()
 {
-	test example(0.0, 1.0, 0.001, 1000, 1e-6, 2, 1e-3);
+//	test example(0.0, 1.0, 0.001, 1000, 1e-5, 2, 1e-3);
+//	task1 example(0.0, 1.0, 0.001, 1000, 1e-5, 2, 1e-3);
+	task2 example(0.0, 1.0, 1.0, 2.0, 1.0, 1.0, 0.001, 1000, 1e-5, 10.0, 1e-3);
 	example.calculate_w_error();
 	std::cout << example;
 	int i;

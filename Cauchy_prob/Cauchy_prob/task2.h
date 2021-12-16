@@ -1,72 +1,89 @@
 #pragma once
 #include <iostream>
 #include <cmath>
-#include <map>
 #include <vector>
-#include <iterator>
+#include <algorithm>
+#include <utility>
 
-// L, R - given constant conditions
-// E0, w - variable parameters
-// dI/dx = sin(w*x)*E0/L - R*I/L = f(I, x)
-// calculation stops when n steps are done
-
-class VC // variable current
+class task2
 {
 private:
-	long double E0, w, L, R; // given conditions (may be variable)
-	long double I0, x0;
-	long double h, eps, xmax, prec;
-	long int n; // number of steps
-	std::vector<long double> arg; //x
-	std::vector<long double> res; //I
-	std::vector<long double> reshalf; //I with cap
-	std::vector<long double> steps; //h
-	std::vector<long double> ss; //S
-	std::vector<long double> exres; //exact result
-	std::vector<long int> hinc;  // total step increases
-	std::vector<long int> hdec;  // total step decreases
-	long double func(long double x, long double I)
+	double u0, v0, x0;
+	double a, b, c;
+	double h, eps, xmax, prec;
+	int n, N;                   // number of steps, total steps
+	std::vector<double> arg; //x
+	std::vector<double> ures; //v
+	std::vector<double> vres; //u
+	double Xn, Un, Vn;
+	int inc = 0;
+	int dec = 0; // total inc dec
+	int Smin = 0, Smax = 0; // number of string with Smin, Smax
+	int hmax, hmin; //number of string with hmax, hmin
+	std::vector<std::pair<double, double>> reswcap; //(u, v) with cap
+	std::vector<double> steps; //h
+	std::vector<double> ss;    //S*
+	std::vector<int> hinc;  // total step increases
+	std::vector<int> hdec;  // total step decreases
+	double func1(double x, double u, double v) // u' = v
 	{
-		return (sin(w*x)*E0 / L - R * I / L);
+		return v;
+	}
+	double func2(double x, double u, double v) // v'= u'' = -a * v*abs(v) - b * v - c * u
+	{
+		return (-a * v*abs(v) - b * v - c * u);
+
 	}
 public:
-	VC(long double _x0, long double _I0, long double _L, long double _R, long double _E0, long double _w, long double _h, long int _n, long double _eps, long double _xmax, long double _prec)
+	task2(double _x0, double _u0, double _v0, double _a, double _b, double _c, double _h, int _n, double _eps, double _xmax, double _prec)
 	{
 		x0 = _x0;
-		I0 = _I0;
-		L = _L;
-		R = _R;
-		E0 = _E0;
-		w = _w;
+		u0 = _u0;
+		v0 = _v0;
+		a = _a;
+		b = _b;
+		c = _c;
 		h = _h;
 		n = _n;
 		eps = _eps;
 		xmax = _xmax;
 		prec = _prec;
 	}
-	long double RK3(long double xn, long double In, long double h)
+	std::pair<double, double> RK4(double xn, double un, double vn, double h)
 	{
+		double ku1, ku2, ku3, ku4;  // for un
+		double kv1, kv2, kv3, kv4;  // for vn
 
-		long double k1 = func(xn, In);
-		long double k2 = func(xn + h / 2.0, In + h * k1 / 2.0);
-		//		long double k3 = func(xn + h, In + h * (-k1 + 2.0 * k2));
-		long double k3 = func(xn + h, In + h * (2.0 * k2 - k1));
-		In += h * (k1 + 4.0 * k2 + k3) / 6.0;
-		return In;
+		ku1 = func1(xn, un, vn);
+		kv1 = func2(xn, un, vn);
+
+		ku2 = func1(xn + h / 2.0, un + (h / 2.0)*ku1, vn + (h / 2.0)*kv1);
+		kv2 = func2(xn + h / 2.0, un + (h / 2.0)*ku1, vn + (h / 2.0)*kv1);
+
+		ku3 = func1(xn + h / 2.0, un + (h / 2.0)*ku2, vn + (h / 2.0)*kv2);
+		kv3 = func2(xn + h / 2.0, un + (h / 2.0)*ku2, vn + (h / 2.0)*kv2);
+
+		ku4 = func1(xn + h, un + h * ku3, vn + h * kv3);
+		kv4 = func2(xn + h, un + h * ku3, vn + h * kv3);
+
+		un = un + h * (ku1 + 2.0 * ku2 + 2.0 * ku3 + ku4) / 6.0;
+		vn = vn + h * (kv1 + 2.0 * kv2 + 2.0 * kv3 + kv4) / 6.0;
+
+		return std::make_pair(un, vn);
 	}
-	std::vector<long double> calculate()
+	std::pair<std::vector<double>, std::vector<double>> calculate()
 	{
-		exres.push_back(I0);
 		arg.push_back(x0);
-		res.push_back(I0);
+		auto result = std::make_pair(u0, v0);
+		ures.push_back(u0);
+		vres.push_back(v0);
 		hinc.push_back(0);
 		ss.push_back(0.0);
 		hdec.push_back(0);
-		steps.push_back(h);
-		reshalf.push_back(0.0);
-		long double xn = x0;
-		long double In = I0;
-		long int i = 0;
+		steps.push_back(0.0);
+		reswcap.push_back(std::make_pair(0.0, 0.0));
+		double xn = x0;
+		int i = 0;
 		while (i < n)
 		{
 			if ((xn > (xmax - prec)) && (xn < xmax))
@@ -80,46 +97,56 @@ public:
 					{
 						h /= 2.0;
 					}
-					In = RK3(xn, In, h);
+					result = RK4(xn, result.first, result.second, h);
 					xn += h;
 				}
 				else
 				{
-					In = RK3(xn, In, h);
+					result = RK4(xn, result.first, result.second, h);
 					xn += h;
 				}
 				arg.insert(arg.begin() + i + 1, xn);
-				res.insert(res.begin() + i + 1, In);
+				ures.insert(ures.begin() + i + 1, result.first);
+				vres.insert(vres.begin() + i + 1, result.second);
 				steps.insert(steps.begin() + i + 1, h);
-				exres.insert(exres.begin() + i + 1, ExactSolution(xn));
 				hinc.insert(hinc.begin() + i + 1, 0);
 				hdec.insert(hdec.begin() + i + 1, 0);
-				reshalf.insert(reshalf.begin() + i + 1, 0.0);
+				reswcap.insert(reswcap.begin() + i + 1, std::make_pair(0.0, 0.0));
 				ss.insert(ss.begin() + i + 1, 0.0);
 				i++;
 			}
 		}
+		N = i;
+		Xn = arg[i];
+		Un = ures[i];
+		Vn = vres[i];
+		hmin = i;
+		hmax = 1;
+		std::pair<std::vector<double>, std::vector<double>> res;
+		res.first = ures;
+		res.second = vres;
 		return res;
 	}
-	std::vector<long double> calculate_w_error()
+	std::pair<std::vector<double>, std::vector<double>> calculate_w_error()
 	{
-		exres.push_back(I0);
+		auto result = std::make_pair(u0, v0);
 		ss.push_back(0.0);
 		arg.push_back(x0);
-		res.push_back(I0);
+		ures.push_back(u0);
+		vres.push_back(v0);
 		steps.push_back(0.0);
-		steps.push_back(h);
-		reshalf.push_back(0.0);
+		reswcap.push_back(std::make_pair(0.0, 0.0));
 		hinc.push_back(0);
 		hdec.push_back(0);
 		hinc.push_back(0);
 		hdec.push_back(0);
-		long double xn = x0;
-		long double In = I0;
-		long double xhalf = x0;
-		long double Ihalf, reswcap, Inext;
-		long double S;
-		long int i = 0;
+		double xn = x0;
+		double xhalf = x0;
+		auto half = result;
+		auto cap = result;
+		auto next = result;
+		double S, S1, S2;
+		int i = 0;
 		while (i < n)
 		{
 			if ((xn > (xmax - prec)) && (xn < xmax))
@@ -128,12 +155,14 @@ public:
 			}
 			else
 			{
-				Ihalf = RK3(xn, In, h / 2.0);
+				next = RK4(xn, result.first, result.second, h);
+				half = RK4(xn, result.first, result.second, h / 2.0);
 				xhalf = xn + h / 2.0;
-				reswcap = RK3(xhalf, Ihalf, h / 2.0);
-				Inext = RK3(xn, In, h);
-				S = (reswcap - Inext) / 7.0;
-				if ((abs(S) >= (eps / 16.0)) && (abs(S) <= eps))
+				cap = RK4(xhalf, half.first, half.second, h / 2.0);
+				S1 = abs(cap.first - next.first) / 15.0;
+				S2 = abs(cap.second - next.second) / 15.0;
+				S = std::max(S1, S2);
+				if ((S >= (eps / 32.0)) && (S <= eps))
 				{
 					if ((xn + h) > xmax)
 					{
@@ -143,21 +172,22 @@ public:
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
-						In = RK3(xn, In, h);
-						hinc.insert(hinc.begin() + i + 2, hinc[i + 1]);
-						hdec.insert(hdec.begin() + i + 2, ++(hdec[i + 1]));
+						result = RK4(xn, result.first, result.second, h);
+						steps.insert(steps.begin() + i + 1, h);
+						hinc.insert(hinc.begin() + i + 1, inc);
+						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else
 					{
-						In = RK3(xn, In, h);
-						//	xhalf = xn + h / 2.0;
+						result = next;
 						xn += h;
-						hinc.insert(hinc.begin() + i + 2, hinc[i + 1]);
-						hdec.insert(hdec.begin() + i + 2, hdec[i + 1]);
+						steps.insert(steps.begin() + i + 1, h);
+						hinc.insert(hinc.begin() + i + 1, inc);
+						hdec.insert(hdec.begin() + i + 1, dec);
 					}
 
 				}
-				else if (abs(S) < (eps / 16.0))
+				else if (S < (eps / 32.0))
 				{
 					if ((xn + h) > xmax)
 					{
@@ -167,20 +197,21 @@ public:
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
-						In = RK3(xn, In, h);
-						hinc.insert(hinc.begin() + i + 2, hinc[i + 1]);
-						hdec.insert(hdec.begin() + i + 2, ++(hdec[i + 1]));
+						result = RK4(xn, result.first, result.second, h);
+						steps.insert(steps.begin() + i + 1, h);
+						hinc.insert(hinc.begin() + i + 1, inc);
+						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else {
-						In = RK3(xn, In, h);
-						//	xhalf = xn + h / 2.0;
+						result = next;
 						xn += h;
+						steps.insert(steps.begin() + i + 1, h);
 						h *= 2.0;
-						hinc.insert(hinc.begin() + i + 2, ++(hinc[i + 1]));
-						hdec.insert(hdec.begin() + i + 2, hdec[i + 1]);
+						hinc.insert(hinc.begin() + i + 2, ++inc);
+						hdec.insert(hdec.begin() + i + 2, dec);
 					}
 				}
-				else if (abs(S) > eps)
+				else if (S > eps)
 				{
 					if ((xn + h) > xmax)
 					{
@@ -190,48 +221,239 @@ public:
 						}
 						xn += h;
 						xhalf = xn + h / 2.0;
-						In = RK3(xn, In, h);
-						hinc.insert(hinc.begin() + i + 2, hinc[i + 1]);
-						hdec.insert(hdec.begin() + i + 2, ++(hdec[i + 1]));
+						result = RK4(xn, result.first, result.second, h);
+						steps.insert(steps.begin() + i + 1, h);
+						hinc.insert(hinc.begin() + i + 1, inc);
+						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else {
 						h = h / 2.0;
-						In = RK3(xn, In, h);
-						//	xhalf = xn + h / 2.0;
+						result = RK4(xn, result.first, result.second, h);
 						xn += h;
-						hinc.insert(hinc.begin() + i + 2, hinc[i + 1]);
-						hdec.insert(hdec.begin() + i + 2, ++(hdec[i + 1]));
+						steps.insert(steps.begin() + i + 1, h);
+						hinc.insert(hinc.begin() + i + 1, inc);
+						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 				}
 				i++;
-				S *= 8.0;
-				reshalf.insert(reshalf.begin() + i, reswcap);
+				S *= 16.0;
+				if (i == 1)
+				{
+					Smin = i;
+					Smax = i;
+					hmin = i;
+					hmax = i;
+				}
+				else if (S < ss[Smin])
+					Smin = i;
+				else if (S > ss[Smax])
+					Smax = i;
+				if (h < steps[hmin])
+					hmin = i;
+				if (h > steps[hmax])
+					hmax = i;
+				reswcap.insert(reswcap.begin() + i, cap);
 				ss.insert(ss.begin() + i, S);
 				arg.insert(arg.begin() + i, xn);
-				res.insert(res.begin() + i, In);
-				steps.insert(steps.begin() + i + 1, h);
-				exres.insert(exres.begin() + i, ExactSolution(xn));
+				ures.insert(ures.begin() + i, result.first);
+				vres.insert(vres.begin() + i, result.second);
 			}
 		}
+		N = i;
+		Xn = arg[i];
+		Un = ures[i];
+		Vn = vres[i];
+		inc = hinc[i];
+		dec = hdec[i];
+		std::pair<std::vector<double>, std::vector<double>> res;
+		res.first = ures;
+		res.second = vres;
 		return res;
 	}
-	long double ExactSolution(long double x)
+	friend std::ostream & operator<<(std::ostream &out, task2 &vc)
 	{
-		return (E0*(R*sin(w*x) - L * w*cos(w*x) + L * w*exp(-R * x / L)) / (pow(L, 2.0) * pow(w, 2.0) + pow(R, 2.0)) + I0 * exp(-R * x / L));
-	}
-	friend std::ostream & operator<<(std::ostream &out, VC &vc)
-	{
-		if (vc.res.empty())
+		if (vc.ures.empty() || vc.ures.empty())
 			out << "There are no calculated results yet.";
 		else {
-			out << "n  " << " h n-1  " << "    x    " << "      In        " << "        I^        " << "       I      " << "   I - In    " << "       S*      " << "inc " << "dec" << std::endl;
-			long double globerr;
-			for (long int i = 0; i < vc.res.size(); i++)
+			out << "n  " << " h n-1  " << "    x    " << "    un    " << "    vn    " << "       S*      " << "inc " << "dec" << std::endl;
+			for (int i = 0; i < vc.ures.size(); i++)
 			{
-				globerr = abs(vc.exres[i] - vc.res[i]);
-				out << i << "  " << vc.steps[i] << "      " << vc.arg[i] << "    " << vc.res[i] << "    " << vc.reshalf[i] << "    " << vc.exres[i] << "    " << globerr << "   " << vc.ss[i] << "    " << vc.hinc[i] << "  " << vc.hdec[i] << std::endl;
+				out << i << "  " << vc.steps[i] << "      " << vc.arg[i] << "    " << vc.ures[i] << "    " << vc.vres[i] << "    " << vc.ss[i] << "    " << vc.hinc[i] << "  " << vc.hdec[i] << std::endl;
 			}
 		}
 		return out;
 	}
+
+
+	/*
+	double reth(int count)
+	{
+		return steps[count];
+	}
+
+	double retx(int count)
+	{
+		return arg[count];
+	}
+
+	double retun(int count)
+	{
+		return ures[count];
+	}
+
+	double retvn(int count)
+	{
+		return vres[count];
+	}
+
+	double retun_with_cap(int count)
+	{
+		return reswcap[count].first;
+	}
+
+	double retvn_with_cap(int count)
+	{
+		return reswcap[count].second;
+	}
+
+	double rets(int count)
+	{
+		return ss[count];
+	}
+
+	int rethinc(int count)
+	{
+		return hinc[count];
+	}
+
+	int rethdec(int count)
+	{
+		return hdec[count];
+	}
+
+	QVector<double> retGraphIn()
+	{
+
+		return QVector<double>::fromStdVector(res);
+	}
+
+	QVector<double> retGraphI()
+	{
+
+		return QVector<double>::fromStdVector(exres);
+	}
+
+	QVector<double> retGraphX()
+	{
+		return QVector<double>::fromStdVector(arg);
+	}
+
+	double minX(void)
+	{
+		return arg[0];
+	}
+
+	double maxX(void)
+	{
+		return arg[arg.size() - 1];
+	}
+
+	double minI(void)
+	{
+		double min_val = exres[0];
+
+		for (unsigned int i = 1; i < exres.size(); i++)
+		{
+			if (res[i] < min_val)
+				min_val = res[i];
+			if (exres[i] < min_val)
+				min_val = exres[i];
+		}
+		return min_val;
+	}
+
+	double maxI(void)
+	{
+		double max_val = arg[0];
+
+		for (unsigned int i = 1; i < arg.size(); i++)
+		{
+			if (res[i] > max_val)
+				max_val = res[i];
+			if (exres[i] > max_val)
+				max_val = exres[i];
+		}
+		return max_val;
+	}
+
+	int retN(void) //индекс последнего шага
+	{
+		return n;
+	}
+
+	double retxN(void) //значение Xn (реальное значение)
+	{
+		return Xn;
+	}
+
+	double retxMax(void) //значение Xn - заданная правая граница
+	{
+		return xmax;
+	}
+
+	double retvN(void) //значение In
+	{
+		return Vn;
+	}
+
+	double retSmax(void) //max|S|
+	{
+		return ss[Smax] / 8;
+	}
+
+	double retSmin(void) //min|S|
+	{
+		return ss[Smin] / 8;
+	}
+
+	double retX_Smax(void) //max|S| при
+	{
+		return arg[Smax];
+	}
+
+	double retX_Smin(void) //min|S| при
+	{
+		return arg[Smin];
+	}
+
+	int retHinc(void) //всего увеличений шага
+	{
+		return inc;
+	}
+
+	int rethdec(void) //всего уменьшений шага
+	{
+		return dec;
+	}
+
+	double retHmax(void) //max hn
+	{
+		return steps[hmax];
+	}
+
+	double retHmin(void) //min hn
+	{
+		return steps[hmin];
+	}
+
+	double retX_hmax(void) //max hn при
+	{
+		return arg[hmax];
+	}
+
+	double retX_hmin(void) //min hn при
+	{
+		return arg[hmin];
+	}
+	*/
 };
