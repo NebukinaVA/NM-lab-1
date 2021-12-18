@@ -14,6 +14,7 @@ int main()
 	// ------------------------
 	int task, n;
 	double x0, u0, v0, h, eps, xmax, prec, a, b, c;
+	eps = 1e-5;
 	bool flag = true;
 	while (flag) {
 		std::cout << "Выберите тип задачи:\nТестовая - 0\nОсновная 1 - 1\nОсновная 2 - 2\n";

@@ -116,7 +116,9 @@ public:
 		N = i;
 		Xn = arg[i];
 		Vn = res[i];
-		hmin = i;
+		if (i == n)
+			hmin = 1;
+		else hmin = i;
 		hmax = 1;
 		return res;
 	}

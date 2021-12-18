@@ -15,14 +15,15 @@ private:
 	int n;                   // number of steps
 	int N = 0; // total steps
 	double Xn, Vn;
-	double maxgloberr = 0.0;
 	int inc = 0;
 	int dec = 0; // total inc dec
 	int Smin = 0, Smax = 0; // number of string with Smin, Smax
 	int hmax, hmin; //number of string with hmax, hmin
+	int maxgloberr = 0; // number of string with max global error
 	std::vector<double> arg; //x
 	std::vector<double> res; //v
 	std::vector<double> reswcap; //v with cap
+	std::vector<double> global;  // global error
 	std::vector<double> steps; //h
 	std::vector<double> ss;    //S*
 	std::vector<double> exres; // u - exact result
@@ -84,10 +85,12 @@ public:
 		hinc.push_back(0);
 		ss.push_back(0.0);
 		hdec.push_back(0);
+		global.push_back(0.0);
 		steps.push_back(0.0);
 		reswcap.push_back(0.0);
 		double xn = x0;
 		double vn = v0;
+		double globerr = 0.0;
 		int i = 0;
 		while (i < n)
 		{
@@ -119,14 +122,19 @@ public:
 				reswcap.insert(reswcap.begin() + i + 1, 0.0);
 				ss.insert(ss.begin() + i + 1, 0.0);
 				i++;
+				globerr = abs(exres[i] - res[i]);
+				global.insert(global.begin() + i, globerr);
+				if (globerr > global[maxgloberr])
+					maxgloberr = i;
 			}
 		}
 		N = i;
 		Xn = arg[i];
 		Vn = res[i];
-		hmin = i;
+		if (i == n)
+			hmin = 1;
+		else hmin = i;
 		hmax = 1;
-		maxgloberr = 0.0;
 		return res;
 	}
 	std::vector<double> calculate_w_error()
@@ -135,6 +143,7 @@ public:
 		ss.push_back(0.0);
 		arg.push_back(x0);
 		res.push_back(v0);
+		global.push_back(0.0);
 		steps.push_back(0.0);
 		reswcap.push_back(0.0);
 		hinc.push_back(0);
@@ -258,8 +267,9 @@ public:
 				res.insert(res.begin() + i, vn);
 				exres.insert(exres.begin() + i, ExactSolution(xn));
 				globerr = abs(exres[i] - res[i]);
-				if (globerr > maxgloberr)
-					maxgloberr = globerr;
+				global.insert(global.begin() + i, globerr);
+				if (globerr > global[maxgloberr])
+					maxgloberr = i;
 
 			}
 		}
@@ -282,11 +292,11 @@ public:
 			out << "Тестовая задача" << std::endl;
 			out << std::setw(5) << "n" << std::setw(10) << "h n-1" << std::setw(10) << "x" << std::setw(10) << "vn" << std::setw(10) << "v^" << std::setw(10) << "u" << std::setw(15) << "u - vn" << std::setw(15) << "S*" << std::setw(5) << "inc" << std::setw(4) << "dec" << std::endl;
 			out << "-------------------------------------------------------------------------------------------" << std::endl;
-			double globerr;
+//			double globerr;
 			for (int i = 0; i < vc.res.size(); i++)
 			{
-				globerr = abs(vc.exres[i] - vc.res[i]);
-				out << std::setw(5) << i << std::setw(10) << vc.steps[i] << std::setw(10) << vc.arg[i] << std::setw(10) << vc.res[i] << std::setw(10) << vc.reswcap[i] << std::setw(10) << vc.exres[i] << std::setw(15) << globerr << std::setw(15) << vc.ss[i] << std::setw(5) << vc.hinc[i] << std::setw(4) << vc.hdec[i] << std::endl;
+//				globerr = abs(vc.exres[i] - vc.res[i]);
+				out << std::setw(5) << i << std::setw(10) << vc.steps[i] << std::setw(10) << vc.arg[i] << std::setw(10) << vc.res[i] << std::setw(10) << vc.reswcap[i] << std::setw(10) << vc.exres[i] << std::setw(15) << vc.global[i] << std::setw(15) << vc.ss[i] << std::setw(5) << vc.hinc[i] << std::setw(4) << vc.hdec[i] << std::endl;
 			}
 			out << "\n";
 		}
@@ -304,7 +314,7 @@ public:
 		std::cout << "Общее число уменьшений шага = " << dec << std::endl;
 		std::cout << "Максимальный шаг h = " << steps[hmax] << "  при х = " << arg[hmax] << std::endl;
 		std::cout << "Минимальный шаг h = " << steps[hmin] << "  при х = " << arg[hmin] << std::endl;
-		std::cout << "max |un - vn| = " << maxgloberr << "\n" << std::endl;
+		std::cout << "max |un - vn| = " << global[maxgloberr] << "  при х = " << arg[maxgloberr] << "\n" << std::endl;
 	}
 
 	/*

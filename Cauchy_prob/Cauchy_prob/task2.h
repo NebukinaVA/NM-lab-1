@@ -147,7 +147,9 @@ public:
 		Xn = arg[i];
 		Un = ures[i];
 		Vn = vres[i];
-		hmin = i;
+		if (i == n)
+			hmin = 1;
+		else hmin = i;
 		hmax = 1;
 		std::pair<std::vector<double>, std::vector<double>> res;
 		res.first = ures;
