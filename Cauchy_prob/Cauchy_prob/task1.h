@@ -26,7 +26,7 @@ private:
 	std::vector<int> hdec;  // total step decreases
 	double func(double x, double u)
 	{
-		return ((pow(x, 3) + 1)*pow(u, 2) / (pow(x, 5) + 1) + u - pow(u, 3)*sin(10.0*x));
+		return (((pow(x, 3) + 1) / (pow(x, 5) + 1))*pow(u, 2) + u - pow(u, 3)*sin(10 * x));
 	}
 public:
 	task1(double _x0, double _v0, double _h, int _n, double _eps, double _xmax, double _prec)
@@ -136,7 +136,7 @@ public:
 		double xn = x0;
 		double vn = v0;
 		double xhalf = x0;
-		double Ihalf, reswcap, vnext;
+		double vhalf, reswcap, vnext;
 		double S, Sabs;
 		int i = 0;
 		while (i < n)
@@ -147,11 +147,11 @@ public:
 			}
 			else
 			{
-				Ihalf = RK4(xn, vn, h / 2.0);
+				vhalf = RK4(xn, vn, h / 2.0);
 				xhalf = xn + h / 2.0;
-				reswcap = RK4(xhalf, Ihalf, h / 2.0);
+				reswcap = RK4(xhalf, vhalf, h / 2.0);
 				vnext = RK4(xn, vn, h);
-				S = (reswcap - vnext) / 7.0;
+				S = (reswcap - vnext) / 15.0;
 				Sabs = abs(S);
 				if ((Sabs >= (eps / 32.0)) && (Sabs <= eps))
 				{
@@ -170,7 +170,7 @@ public:
 					}
 					else
 					{
-						vn = RK4(xn, vn, h);
+						vn = vnext;
 						xn += h;
 						steps.insert(steps.begin() + i + 1, h);
 						hinc.insert(hinc.begin() + i + 1, inc);
@@ -194,7 +194,7 @@ public:
 						hdec.insert(hdec.begin() + i + 1, ++dec);
 					}
 					else {
-						vn = RK4(xn, vn, h);
+						vn = vnext;
 						steps.insert(steps.begin() + i + 1, h);
 						xn += h;
 						h *= 2.0;
